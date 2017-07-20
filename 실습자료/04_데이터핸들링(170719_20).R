@@ -7,10 +7,12 @@
 ## Data Handling = Data Pre-processing
 
 options(repos="https://cran.rstudio.com")
-install.packages("readxl")()
+install.packages("readxl")
 install.packages("data.table")
+install.packages("DT")
 library(readxl)
 library(data.table)
+library(DT)
 
 ## 작업공간 (Working directory)
 ## 설정 : setwd("파일위치")
@@ -193,6 +195,11 @@ student$bmi.group = cut(student$bmi,
                         breaks = c(0, 18.5, 23, 25, 30),
                         right = FALSE)
 
+student$bmi.group3 = cut(student$bmi,
+                        breaks = 0:30,
+                        right = FALSE)
+
+View(student)
 
 score = readxl::read_excel(path = "score.xlsx",
                            sheet = 1,
@@ -262,8 +269,9 @@ studentDT[order(gender, -address) , ]
 
 ## 시간이 얼마나 소요되는지를 알려주는 함수
 ## system.time(작업)
-DF = data.frame(id=1:100000,
-                type=sample(letters, size = 100000, replace = TRUE))
+DF = data.frame(id=1:10,
+                type=sample(letters, size = 10, replace = TRUE))
+View(DF)
 
 DT = as.data.table(DF)
 
@@ -271,4 +279,66 @@ system.time(x <- DF[DF$type == "a", ])
 
 data.table::setkey(DT, type)
 system.time(x <- DT[J("a"), ])
+
+## 07/20(목)
+
+## DT
+
+## <데이터 핸들링 패키지>
+## 1. readxl
+## 2. openxl
+## 3. data.table
+## 4. DT
+
+## 9. 데이터 합치기
+## (1) rbind(데이터1, 데이터2)
+df1 = data.frame(id=1:3, 
+                 age=10:12, 
+                 gender=c("F", "F", "M"))
+
+df2 = data.frame(id=4:5, 
+                 age=c(20, 30), 
+                 gender=c("M", "M"))
+
+df1;df2
+df3 = rbind(df1, df2)
+df3
+
+## (2) merge(데이터1, 데이터2, by=) ***
+df4 = data.frame(id = c(1, 2, 4, 7),
+                 age = c(10, 20, 40, 70))
+df5 = data.frame(id = c(1, 2, 3, 6, 10),
+                 gender = c("M", "M", "F", "M", "F"))
+
+df4;df5
+
+merge(df4, df5, by = "id", all = TRUE)
+
+## <Join 방법>
+## i. inner join
+## merge(데이터1, 데이터2, by=)
+
+merge(df4, df5, by = "id")
+## ==> df4와 df5의 같은 id가 있는 특정 데이터만을 합친다.
+
+
+## ii. outer join
+##  - full join
+## merge(데이터1, 데이터2, by=, all=TRUE)
+
+merge(df4, df5, by = "id", all = TRUE)
+DT::datatable(merge(df4, df5, by = "id", all = TRUE))
+## ==> df4와 df5의 id를 기준으로 모든데이터를 합친다. 
+
+
+## - left join
+## merge(데이터1, 데이터2, by =, all.x = TRUE)
+merge(df4, df5, by = "id", all.x = TRUE)
+
+
+## - right join
+## merge(데이터1, 데이터2, by=, all.y = TRUE)
+merge(df4, df5, by = "id", all.y = TRUE)
+
+df4;df5
 
