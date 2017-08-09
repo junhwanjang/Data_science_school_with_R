@@ -1,0 +1,83 @@
+library(XML)
+acsi.url<-"http://theacsi.org/index.php?option=com_content&view=article&id=147&catid=&Itemid=212&i=Department+and+Discount+Stores"
+
+
+acsi.df<-readHTMLTable(acsi.url, header=T, which=1, stringsAsFactors=F)
+
+acsi.df2<-acsi.df[c(1,2,8, 9, 6, 14, 7,16),]
+acsi.df2<-acsi.df2[,c(1,24)]
+
+View(acsi.df2)
+names(acsi.df2)<-c("company", "benchmark")
+acsi.df2$benchmark<-as.numeric(acsi.df2$benchmark)
+rownames(acsi.df2)<-NULL
+
+View(acsi.df2)
+
+data<-read.csv(file.choose())
+
+pos<-readLines(file.choose())
+neg<-readLines(file.choose())
+
+
+
+pos.final<-c(pos, 'upgrade')
+neg.final<-c(neg, 'wait')
+
+score.sentiment = function(sentences, pos.words, neg.words, .progress='none')
+{
+  require(plyr)
+  require(stringr)
+  
+  scores = laply(sentences, function(sentence, pos.words, neg.words) {
+    
+    sentence = gsub('[[:punct:]]', '', sentence)
+    sentence = gsub('[[:cntrl:]]', '', sentence)
+    sentence = gsub('\\d+', '', sentence)
+    sentence = tolower(sentence)
+    
+    word.list = str_split(sentence, '\\s+')
+    words = unlist(word.list)
+    
+    pos.matches = match(words, pos.words)
+    neg.matches = match(words, neg.words)
+    
+    pos.matches = !is.na(pos.matches)
+    neg.matches = !is.na(neg.matches)
+    
+    score = sum(pos.matches) - sum(neg.matches)
+    
+    return(score)
+  }, pos.words, neg.words, .progress=.progress )
+  
+  scores.df = data.frame(score=scores, text=sentences)
+  return(scores.df)
+}
+
+
+
+
+result<-score.sentiment(data[,2], pos.final, neg.final)
+result$score
+
+result<-score.sentiment(data[,2], pos.final, neg.final, .progress="text")
+result$score
+
+
+result$company<-data[,1]
+
+#plyr, company별 평균 점수
+result1<-ddply(result, .(company), summarise, avg=mean(score))
+hist(result$score)
+
+library(ggplot2)
+
+all.scores<-result
+ggplot(data=result)+
+  geom_bar(mapping=aes(x=score, fill=company), binwidth=1)+
+  facet_grid(company~.)+theme_bw()
+
+
+cor(acsi.df2$benchmark, result1$avg)
+plot(acsi.df2$benchmark, result1$avg, col=1:8)
+legend("topright", legend=acsi.df2$company, lty=1, col=1:8, ncol=3)

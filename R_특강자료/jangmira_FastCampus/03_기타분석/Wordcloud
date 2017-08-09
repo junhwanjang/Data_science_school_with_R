@@ -1,0 +1,24 @@
+
+library("wordcloud")
+library("RColorBrewer")
+
+words<-read.csv(file.choose())
+
+pal <- brewer.pal(9,"Set1")
+palete <- brewer.pal(9 , "Set3");
+wordcloud(words$word, words$freq)
+
+
+wordcloud(words$word, words$freq, scale = c(5,0.5), rot.per=0.25, min.freq = 1, 
+          random.order = F, random.color=T, colors=palete)
+
+
+
+
+
+
+
+
+
+
+

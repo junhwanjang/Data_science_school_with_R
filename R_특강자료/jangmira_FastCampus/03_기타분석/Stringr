@@ -1,0 +1,17 @@
+install.packages("stringr")
+library(stringr)
+str_split(carInfos[1] %>% html_nodes('.sub_01') %>% html_text(), 'ㅣ')
+str_replace('20,000km', '0', '')
+str_replace_all('20,000km', '0', '')
+str_replace_all('20,000Km', '[a-zA-Z]', '')
+
+
+
+
+
+splitFunction <- function(row){ 
+  return(str_split(row, 'ㅣ')[[1]]) } 
+carDetailInfo <- lapply(carInfos %>% html_nodes('.sub_01') %>% 
+                          html_text(), splitFunction) 
+
+head(carDetailInfo)

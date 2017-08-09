@@ -1,0 +1,58 @@
+###data load
+library(WDI)
+gdp<-WDI(country = c("US", "CA", "GB", "CN", "JP", "SG", "IL", "KR"),
+         indicator=c("NY.GDP.PCAP.CD", "NY.GDP.MKTP.CD"),
+         start=1960, end=2016
+)
+
+
+names(gdp)<-c("iso2c", "Country", "Year", "PerCapGDP", "GDP")
+
+
+##data reshape
+library(reshape2)
+gdpCast<-dcast(Year~Country,
+               data=gdp[ , c("Country","Year", "PerCapGDP" )],
+               value.var="PerCapGDP")
+
+View(gdpCast)
+
+## check correlation
+install.packages("psych")
+library(psych)
+pairs.panels(gdpCast)
+
+##convert into time series
+gdpTs<-ts(data=gdpCast[,-1]
+          ,start=min(gdpCast$Year , end = max(start=min(gdpCast$Year))))
+
+## check data
+plot(gdpTs)
+plot(gdpTs, plot.type="single", col=1:9)
+
+legend("topleft", legend=colnames(gdpTs), lty=1, col=1:9, ncol=3)
+
+## check best diff
+numDiffs<-ndiffs(gdpTs)
+numDiffs
+gdpdiffed<-(diff(gdpTs, 1))
+
+plot(diff(gdpdiffed, 1), plot.type="single", col=1:9)
+
+
+
+##load and create VAR model
+install.packages("vars")
+library(vars)
+gdpvar<-VAR(gdpdiffed)
+
+## Var object
+names(gdpvar)
+names(gdpvar$varresult)
+names(gdpvar$varresult$Korea..Rep.)
+class(gdpvar$varresult$Korea..Rep.)
+
+
+## predict
+predict(gdpvar, n.ahead=5) 
+plot(predict(gdpvar, n.ahead=5) )
