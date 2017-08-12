@@ -1,0 +1,71 @@
+---
+title: "ggplot2"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include = FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# 패키지
+```{r}
+library(ggplot2)
+```
+
+1. 데이터
+2. 변수들 사이의 연결과 시각적인 속성 설정
+3. 한 층씩 더하면서 그래프를 추가
+
+# mpg 데이터
+```{r}
+mpg
+```
+
+
+# Histogram
+```{r}
+ggplot(mpg, aes(cty)) + geom_histogram(binwidth = 2)
+```
+
+# Point Graph
+```{r}
+ggplot(mpg,aes(x=displ, y=hwy)) + geom_point()
+```
+
+# Point Graph + Smooth
+```{r}
+ggplot(mpg,aes(x=displ, y=hwy)) + geom_point() + geom_smooth()
+```
+
+# Point Graph + 클래스별 색깔
+```{r}
+ggplot(mpg,aes(x=displ, y=cty, colour=class)) + geom_point()
+```
+
+# Point Graph + facet_wrap
+```{r}
+ggplot(mpg, aes(displ, hwy)) + geom_point() + facet_wrap(~class)
+```
+
+# Density Graph
+```{r}
+ggplot(mpg,aes(x=hwy, fill=as.factor(class))) + geom_density()
+```
+
+# Bar Chart
+```{r}
+ggplot(data=kyphosis, aes(x=Start, fill=Kyphosis)) + geom_bar(stat="count", position=position_dodge())
+```
+
+
+# Line Graph
+
+```{r}
+
+uv_grade$grade <- as.factor(uv_grade$grade)
+gp <- ggplot(data=uv_grade, aes(x=date, y=users, group=grade, colour=grade)) + geom_line() + geom_point() 
+gp
+gp + scale_colour_discrete(name="Grade", breaks=c("5", "4", "3", "2", "1", "100"), labels=c("New", "Silver", "Gold", "VIP", "VVIP", "FIRST"))
+```

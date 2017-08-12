@@ -1,0 +1,360 @@
+---
+title: "분류"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# k-NN
+
+## class 패키지
+```{r}
+library(class)
+```
+
+## 데이터 준비
+```{r}
+iris
+
+## 훈련 데이터와 테스트 데이터를 0.67, 0.33의 확률로 나누기 위한 샘플 생성
+ind <- sample(1:nrow(iris), 100)
+
+## 수치 데이터와 Label을 따로 정의
+iris.training <- iris[ind, 1:4]
+iris.test <- iris[-ind, 1:4]
+
+iris.trainLabels <- iris[ind, 5]
+iris.testLabels <- iris[-ind, 5]
+```
+
+## 훈련 데이터
+```{r}
+iris.training
+iris.trainLabels
+```
+
+## 테스트 데이터
+```{r}
+iris.testLabels
+```
+
+## 훈련/예측 (k=1) - 패키지 없이
+
+* 4차원 거리 함수
+```{r}
+distance4 <- function(x, y) {
+  tmp <- sqrt(sum((x[1]-y[1])^2+(x[2]-y[2])^2+(x[3]-y[3])^2+(x[4]-y[4])^2))
+  return (tmp)
+  }
+```
+
+* 첫 번째 훈련 데이터와 원점 사이의 거리
+```{r}
+distance4(iris.training[1,], cbind(0,0,0,0))
+```
+
+* 첫 번째 훈련 데이터와 첫 번째 테스트 데이터 사이의 거리
+```{r}
+distance4(iris.training[1,], iris.test[1,])
+```
+
+* 1 Nearest Neighbor를 계산하는 함수
+* 입력값
+    + x: 훈련 데이터
+    + y: x와 거리를 계산하여 분류할 특정 데이터
+    + labels: 레이블
+* 출력: y의 위치와 분류된 class
+```{r}
+nn1 <- function(x, y, labels) {
+  df <- data.frame()
+  for(i in 1:nrow(x)) {
+    df_tmp <- data.frame(dist=distance4(x[i,], y), class=labels[i])
+    df <- rbind(df, df_tmp)
+  }
+  return (cbind(y, Species=df[which.min(df$dist),]$class))
+}
+```
+
+* 95 번째 테스트 데이터 분류
+```{r}
+nn1(iris.training, iris.training[95,], iris.trainLabels)
+```
+
+* iris.test에 있는 값들을 분류
+```{r}
+iris_pred_k1 <- data.frame()
+for(i in 1:nrow(iris.test)) {
+  iris_pred_k1 <- rbind(iris_pred_k1, nn1(iris.training, iris.test[i,], iris.trainLabels))
+}
+iris_pred_k1
+```
+
+### Plot: 직접 계산한 예측값 (k=1)
+```{r}
+plot(iris_pred_k1$Sepal.Length, iris_pred_k1$Sepal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred_k1$Species)])
+plot(iris_pred_k1$Petal.Length, iris_pred_k1$Petal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred_k1$Species)])
+```
+
+### 혼동행렬 (k=1에 대해 패키지 없이 계산)
+```{r}
+library(caret)
+confusionMatrix(iris_pred_k1$Species, iris.testLabels)
+```
+
+* Accuracy: 전체에서 맞게 예측한 비율
+* Sensitivity: 실제 분류 중 맞게 예측한 비율
+* Specificity: 실제 분류가 아닌 것 중 맞게 예측한 비율
+* Pos Pred Value: 긍정 예측 중 올바른 예측 비율 -> 정밀도
+* Neg Pred Value: 부정 예측 중 올바른 예측 비율
+* Prevalence: 전체에서 긍정 예측 비율
+
+
+## 훈련/예측 (k=5) - 패키지 없이
+
+* 5 Nearest Neighbor를 계산하는 함수
+* 입력값
+    + x: 훈련 데이터
+    + y: x와 거리를 계산하여 분류할 특정 데이터
+    + labels: 레이블
+* 출력: y의 위치와 분류된 class
+```{r}
+nn5 <- function(x, y, labels) {
+  df <- data.frame()
+  for(i in 1:nrow(x)) {
+    df_tmp <- data.frame(dist=distance4(x[i,], y), class=labels[i])
+    df <- rbind(df, df_tmp)
+  }
+  dist.sort <- sort(df$dist, index.return=TRUE)
+  n1 <- df[dist.sort$ix[1],]
+  n2 <- df[dist.sort$ix[2],]
+  n3 <- df[dist.sort$ix[3],]
+  n4 <- df[dist.sort$ix[4],]
+  n5 <- df[dist.sort$ix[5],]
+  class <- tail(names(sort(table(rbind(n1, n2, n3, n4, n5)$class))), n=1)
+  return (cbind(y, Species=class))
+}
+```
+
+* 95 번째 테스트 데이터 분류
+```{r}
+nn5(iris.training, iris.training[95,], iris.trainLabels)
+```
+
+* iris.test에 있는 값들을 분류
+```{r}
+iris_pred_k5 <- data.frame()
+for(i in 1:nrow(iris.test)) {
+  iris_pred_k5 <- rbind(iris_pred_k5, nn5(iris.training, iris.test[i,], iris.trainLabels))
+}
+iris_pred_k5
+```
+
+### Plot: 직접 계산한 예측값 (k=5)
+```{r}
+plot(iris_pred_k5$Sepal.Length, iris_pred_k5$Sepal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred_k5$Species)])
+plot(iris_pred_k5$Petal.Length, iris_pred_k5$Petal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred_k5$Species)])
+```
+
+### 혼동행렬 (k=5에 대해 패키지 없이 계산)
+```{r}
+confusionMatrix(iris_pred_k5$Species, iris.testLabels)
+```
+
+
+## 훈련/예측 (k=3, 패키지 사용)
+```{r}
+iris_pred <- knn(train=iris.training, test=iris.test, cl=iris.trainLabels, k=3)
+iris_pred
+```
+
+### 혼동행렬 (k=3)
+```{r}
+confusionMatrix(iris_pred, iris.testLabels)
+```
+
+### Plot (k=3)
+```{r}
+plot(iris.test$Sepal.Length, iris.test$Sepal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred)])
+plot(iris.test$Petal.Length, iris.test$Petal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred)])
+```
+
+## 훈련/예측 (k=50)
+```{r}
+iris_pred_50 <- knn(train=iris.training, test=iris.test, cl=iris.trainLabels, k=50)
+iris_pred_50
+```
+
+### 혼동행렬 (k=50)
+```{r}
+confusionMatrix(iris_pred_50, iris.testLabels)
+```
+
+### Plot (k=50)
+```{r}
+plot(iris.test$Sepal.Length, iris.test$Sepal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred_50)])
+plot(iris.test$Petal.Length, iris.test$Petal.Width, pch=21, bg=c("red","green","blue")[unclass(iris_pred_50)])
+```
+
+## 최적의 k 찾기
+
+* 10-fold cross validation
+```{r}
+ctrl <- trainControl(method="cv", number = 10)
+iris.train.cl <- cbind(iris.trainLabels, iris.training)
+grid <- expand.grid(k=c(1,3,5,7,10,15,20,30,40))
+knnFit <- train(iris.trainLabels ~ ., data = iris.train.cl, method = "knn", trControl = ctrl, tuneGrid=grid)
+knnFit
+```
+
+* Plot
+```{r}
+plot(knnFit)
+```
+
+
+# 나이브 베이즈
+
+## e1071 패키지
+```{r}
+library(e1071)
+```
+
+## 스팸 이메일 분류 예시
+
+### 사전 확률
+```{r}
+# 스팸 확률
+spam <- 0.5
+# 햄 확률
+ham <- 0.5 
+```
+
+### 조건부 확률
+```{r}
+# 스팸일 때 'hello'라는 단어가 들어갈 확률: 30%
+hello_spam <- 0.3
+# 스팸일 때 'world'라는 단어가 들어갈 확률: 2%
+world_spam <- 0.02
+# 햄일 때 'hello'라는 단어가 들어갈 확률: 20%
+hello_ham <- 0.2
+# 햄일 때 'world'라는 단어가 들어갈 확률: 1%
+world_ham <- 0.01
+```
+
+### 사후 확률
+```{r}
+# 'hello'가 들어갈 때 스팸일 확률
+spam_hello <- hello_spam / (hello_spam + hello_ham)
+spam_hello
+# 'world'가 들어갈 때 스팸일 확률
+spam_world <- world_spam / (world_spam + world_ham)
+spam_world
+# 'hello'가 들어갈 때 햄일 확률
+ham_hello <- hello_ham / (hello_spam + hello_ham)
+ham_hello
+# 'world'가 들어갈 때 햄일 확률
+ham_world <- world_ham / (world_spam + world_ham)
+ham_world
+```
+
+### 나이브 베이즈 분류
+```{r}
+# {hello, world} 단어 집합이 들어갈 때 스팸일 확률
+spam_hello * spam_world
+# {hello, world} 단어 집합이 들어갈 때 햄일 확률
+ham_hello * ham_world
+```
+
+* 따라서 스팸
+
+
+## iris 데이터(연속형) 분류
+
+### 사전 확률
+```{r}
+# setosa 
+setosa <- nrow(iris[iris$Species=='setosa',])/nrow(iris)
+setosa
+# versicolor
+versicolor <- nrow(iris[iris$Species=='versicolor',])/nrow(iris)
+versicolor
+# virginica
+virginica <- nrow(iris[iris$Species=='virginica',])/nrow(iris)
+virginica
+```
+
+### 조건부 확률 (Sepal.Length에 대해서만)
+Sepal.Length가 5인 경우 조건부 확률을 위해서 정규 분포를 가정하고 평균과 표준편차 계산
+```{r}
+# setosa의 경우 Sepal.Length의 평균과 표준편차
+mean_sepal.length_setosa <- mean(iris$Sepal.Length[iris$Species=='setosa'])
+sd_sepal.length_setosa <- sd(iris$Sepal.Length[iris$Species=='setosa'])
+# versicolor의 경우 Sepal.Length의 평균과 표준편차
+mean_sepal.length_versicolor <- mean(iris$Sepal.Length[iris$Species=='versicolor'])
+sd_sepal.length_versicolor <- sd(iris$Sepal.Length[iris$Species=='versicolor'])
+# virginica의 경우 Sepal.Length의 평균과 표준편차
+mean_sepal.length_virginica <- mean(iris$Sepal.Length[iris$Species=='virginica'])
+sd_sepal.length_virginica <- sd(iris$Sepal.Length[iris$Species=='virginica'])
+# 꽃 종류별 Sepal.Length의 확률 밀도
+p_sepal.length_setosa <- dnorm(5, mean=mean_sepal.length_setosa, sd=sd_sepal.length_setosa)
+p_sepal.length_setosa
+p_sepal.length_versicolor <- dnorm(5, mean=mean_sepal.length_setosa, sd=sd_sepal.length_versicolor)
+p_sepal.length_versicolor
+p_sepal.length_virginica <- dnorm(5, mean=mean_sepal.length_setosa, sd=sd_sepal.length_virginica)
+p_sepal.length_virginica
+```
+
+### 사후 확률
+```{r}
+# Sepal.Length이 주어졌을 떄 setosa일 확률
+p_setosa_sepal.length <- p_sepal.length_setosa / (p_sepal.length_setosa + p_sepal.length_versicolor + p_sepal.length_virginica)
+p_setosa_sepal.length
+```
+
+* 같은 방법으로 Sepal.Length이 주어졌을 떄 versicolor일 확률과 virginica일 확률 각각 계산 후 비교
+
+### 나이브 베이즈 분류 (e1071 패키지 사용)
+```{r}
+model <- naiveBayes(Species ~ ., data = iris[ind,])
+model
+```
+
+### 예측
+```{r}
+predict(model, iris[-ind,-5])
+iris.testLabels
+```
+
+### 혼동행렬
+```{r}
+confusionMatrix(predict(model, iris[-ind,-5]), iris.testLabels)
+```
+
+### Leave One Out Cross Validation
+```{r}
+train_control <- trainControl(method="LOOCV")
+model <- train(Species~., data=iris, trControl=train_control, method="nb")
+print(model)
+```
+
+* usekernel: Kernel Density Estimation
+
+
+### 10-fold Cross Validation
+```{r}
+train_control <- trainControl(method="cv", number=10)
+model <- train(Species~., data=iris, trControl=train_control, method="nb")
+print(model)
+```
+
+# 연습
+
+## 손글씨 숫자 분류
+데이터: [Digit Recognizer](https://www.kaggle.com/c/digit-recognizer)
+
+## 키와 몸무게에 따른 성별 분류
+파일: 01_heights_weights_genders.csv
