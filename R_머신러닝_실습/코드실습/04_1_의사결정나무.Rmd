@@ -1,0 +1,347 @@
+---
+title: "의사결정나무"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# 특이한 데이터
+
+## 그래프
+```{r}
+library('ggplot2')
+ggplot(df, aes(x=X, y=Y, color=factor(Label))) + geom_point()
+```
+
+## 로지스틱 회귀
+```{r}
+logit.fit <- glm(Label ~ X + Y,
+                 family = binomial(link = 'logit'),
+                 data = df)
+```
+
+## 훈련 데이터로 예측
+```{r}
+predict(logit.fit)
+```
+
+## 양수는 1, 음수는 0으로
+```{r}
+logit.predictions <- ifelse(predict(logit.fit) > 0, 1, 0)
+logit.predictions
+```
+
+## 맞는 예측 비율
+```{r}
+mean(with(df, logit.predictions == Label))
+```
+
+# rpart 패키지
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+
+## df를 위한 분류 나무
+* cp: complexity parameter
+* rel error(relative error): $1 - R^2=1-\left(\frac{잔차의제곱합}{평균과의차이의제곱합}\right)$
+* xerror: leave-one-out 교차검증에 따른 차이값
+* P(node): 관측값들의 비중
+```{r}
+fit.df <- rpart(Label ~ X + Y, method="class", data = df)
+summary(fit.df)
+```
+
+## Plot
+```{r}
+rpart.plot(fit.df)
+```
+
+* 첫 번째: 분류 예측
+* 두 번째: 분류 확률
+* 세 번째: 해당 관측값들의 비중
+
+# Kyphosis (척추 후만증)
+
+## Data
+```{r}
+kyphosis
+```
+
+## Plot
+```{r}
+library(ggplot2)
+ggplot(data=kyphosis, aes(x=Age, fill=Kyphosis)) + geom_bar(stat="count", position=position_dodge())
+```
+
+```{r}
+ggplot(data=kyphosis, aes(x=Start, fill=Kyphosis)) + geom_bar(stat="count", position=position_dodge())
+```
+* 시각적으로 볼 때 Age보다 Start가 분기 기준으로 더 적당함
+
+## rpart - 분류나무
+```{r}
+fit <- rpart(Kyphosis ~ Age + Number + Start, method="class", data = kyphosis)
+summary(fit)
+```
+
+### 모형의 상세 구조
+```{r}
+str(fit)
+```
+
+* frame: 한 행이 하나의 노드에 대한 데이터
+* where: 각 데이터가 어느 (단말) 노드에 속하는지
+* cptable: xerror가 최소가 되는 cp(complexity parameter)를 선택하기 위함
+    + rel error(relative error): $1 - R^2=1-\left(\frac{잔차의제곱합}{평균과의차이의제곱합}\right)$
+    + xerror: leave-one-out 교차검증에 따른 차이값
+* variable.importance: 변수들의 중요도
+
+## Plot
+```{r}
+rpart.plot(fit)
+```
+
+## cp 조정 (cp=0.05)
+```{r}
+fit2 <- rpart(Kyphosis ~ Age + Number + Start, method="class", data = kyphosis, control = rpart.control(cp = 0.05))
+rpart.plot(fit2)
+```
+
+## cp 조정 (cp=0.1)
+```{r}
+fit3 <- rpart(Kyphosis ~ Age + Number + Start, method="class", data = kyphosis, control = rpart.control(cp = 0.5))
+rpart.plot(fit3)
+```
+
+## minsplit 조정 (minsplit=30)
+* 노드를 분류하기 위한 최소 개수
+```{r}
+fit4 <- rpart(Kyphosis ~ Age + Number + Start, method="class", data = kyphosis, control = rpart.control(minsplit=30))
+rpart.plot(fit4)
+```
+
+## maxdepth 조정 (maxdepth=2)
+```{r}
+fit5 <- rpart(Kyphosis ~ Age + Number + Start, method="class", data = kyphosis, control = rpart.control(maxdepth=3))
+rpart.plot(fit5)
+```
+
+## xerror plot
+```{r}
+plotcp(fit)
+```
+
+* 점선은 최솟값 + 표준오차
+
+## 가지치기(pruning)
+```{r}
+pfit <- prune(fit, cp=fit$cptable[which.min(fit$cptable[,"xerror"]),"CP"])
+summary(pfit)
+```
+
+## Plot Pruned
+???
+```{r}
+rpart.plot(pfit)
+```
+
+## fit5
+```{r}
+kyphosis[1:4, ]
+predict(fit5, kyphosis[1:4, ])
+```
+
+## fit
+```{r}
+kyphosis[1:4, ]
+predict(fit, kyphosis[1:4, ])
+```
+
+# Car
+
+## Data
+```{r}
+cu.summary
+```
+
+## rpart - 회귀나무
+```{r}
+fit <- rpart(Mileage~Price + Country + Reliability + Type, method="anova", data=cu.summary)
+summary(fit)
+```
+
+## Plot
+```{r}
+rpart.plot(fit)
+```
+
+## xerror
+```{r}
+plotcp(fit)
+```
+
+## cp
+```{r}
+fit$cptable[which.min(fit$cptable[,"xerror"]),"CP"]
+```
+
+## 가지치기(pruning)
+```{r}
+pfit <- prune(fit, cp=fit$cptable[which.min(fit$cptable[,"xerror"]),"CP"])
+summary(pfit)
+```
+
+## Plot Pruned
+```{r}
+rpart.plot(pfit)
+```
+
+## 예측
+```{r}
+cu.summary[1:4, ]
+predict(pfit, cu.summary[1:4, ])
+```
+
+
+# 모형 검증
+
+## kyphosis
+
+### 훈련/테스트 데이터
+```{r}
+library(caret)
+set.seed(3333)
+trainIndex <- createDataPartition(kyphosis$Kyphosis, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+kyphosisTrain <- kyphosis[ trainIndex,]
+kyphosisTest  <- kyphosis[-trainIndex,]
+```
+
+### 예측
+predict 함수는 분류 확률 계산
+```{r}
+fit <- rpart(Kyphosis ~ Age + Number + Start, data = kyphosisTrain)
+predict(fit, kyphosisTest)
+```
+
+### class 형식으로 예측
+```{r}
+predict(fit, kyphosisTest, type = "class")
+```
+
+### 혼동행렬
+```{r}
+pred <- predict(fit, kyphosisTest, type = "class")
+confusionMatrix(pred, kyphosisTest$Kyphosis)
+```
+
+### 가지치기를 위한 cp
+```{r}
+fit
+fit$cptable[which.min(fit$cptable[,"xerror"]),"CP"]
+```
+
+### 가지치기 후 예측
+```{r}
+pfit <- prune(fit, cp=fit$cptable[which.min(fit$cptable[,"xerror"]),"CP"])
+predict(pfit, kyphosisTest, type = "class")
+```
+
+### 가지치기 후 혼동행렬
+```{r}
+pred <- predict(pfit, kyphosisTest, type = "class")
+confusionMatrix(pred, kyphosisTest$Kyphosis)
+```
+
+## Car
+
+### 훈련/테스트 데이터
+```{r}
+trainIndex <- createDataPartition(cu.summary$Type, p = 0.8, 
+                                  list = FALSE, 
+                                  times = 1
+                                  )
+cu.summaryTrain <- cu.summary[ trainIndex,]
+cu.summaryTest  <- cu.summary[-trainIndex,]
+```
+
+### 예측
+```{r}
+fit <- rpart(Mileage ~ Price + Country + Reliability + Type, data = cu.summaryTrain)
+predict(fit, cu.summary)
+```
+
+### Root Mean Squared Error
+```{r}
+rmse <- function(error)
+{
+    sqrt(mean(error^2))
+}
+```
+
+
+```{r}
+test.mileage <- cu.summaryTest[!is.na(cu.summaryTest$Mileage),]
+pred <- predict(fit, test.mileage)
+rmse(pred-test.mileage$Mileage)
+```
+
+# 키와 몸무게로부터 성별 구분
+```{r}
+X01_heights_weights_genders
+```
+
+## 표본 추출
+```{r}
+index_1 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_1 <- X01_heights_weights_genders[index_1,]
+index_2 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_2 <- X01_heights_weights_genders[index_2,]
+index_3 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_3 <- X01_heights_weights_genders[index_3,]
+index_4 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_4 <- X01_heights_weights_genders[index_4,]
+index_5 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_5 <- X01_heights_weights_genders[index_5,]
+index_6 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_6 <- X01_heights_weights_genders[index_6,]
+index_7 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_7 <- X01_heights_weights_genders[index_7,]
+index_8 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_8 <- X01_heights_weights_genders[index_8,]
+index_9 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_9 <- X01_heights_weights_genders[index_9,]
+index_10 <- createDataPartition(X01_heights_weights_genders$Gender, p=0.2, list = FALSE)
+heights_weights_genders_10 <- X01_heights_weights_genders[index_10,]
+```
+
+## 분류 나무
+```{r}
+fit_1 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_1)
+rpart.plot(fit_1)
+fit_2 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_2)
+rpart.plot(fit_2)
+fit_3 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_3)
+rpart.plot(fit_3)
+fit_4 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_4)
+rpart.plot(fit_4)
+fit_5 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_5)
+rpart.plot(fit_5)
+fit_6 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_6)
+rpart.plot(fit_6)
+fit_7 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_7)
+rpart.plot(fit_7)
+fit_8 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_8)
+rpart.plot(fit_8)
+fit_9 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_9)
+rpart.plot(fit_9)
+fit_10 <- rpart(Gender ~ Height + Weight, method="class", data = heights_weights_genders_10)
+rpart.plot(fit_10)
+```
+

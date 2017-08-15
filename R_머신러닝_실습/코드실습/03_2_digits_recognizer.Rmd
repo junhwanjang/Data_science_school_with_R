@@ -1,0 +1,147 @@
+---
+title: "분류-HW"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# k-NN
+
+## 패키지
+```{r}
+library(class)
+```
+
+## 데이터 준비
+* https://www.kaggle.com/c/digit-recognizer
+```{r}
+recognizer_train
+```
+
+```{r}
+ind <- sample(1:nrow(recognizer_train), 1000)
+
+## 수치 데이터와 Label을 따로 정의
+recognizer.train <- recognizer_train[ind, -c(1)]
+recognizer.test <- recognizer_train[-ind, -c(1)]
+
+recognizer.trainLabels <- recognizer_train[ind, 1]
+recognizer.testLabels <- recognizer_train[-ind, 1]
+```
+
+## 훈련 데이터
+```{r}
+str(recognizer.train)
+str(recognizer.trainLabels)
+```
+
+## 테스트 데이터
+```{r}
+recognizer.testLabels
+```
+
+
+## 훈련/예측 (k=5)
+```{r}
+cl <- as.data.frame(as.factor(recognizer.trainLabels$label))[,1]
+recognizer_pred <- knn(train=recognizer.train, test=recognizer.test, cl=cl, k=5)
+recognizer_pred
+```
+
+```{r}
+cbind(recognizer_pred, recognizer.testLabels)
+```
+
+### 혼동행렬 (k=5)
+```{r}
+library(caret)
+confusionMatrix(recognizer_pred, as.factor(recognizer.testLabels$label))
+```
+
+* Accuracy: 전체에서 맞게 예측한 비율
+* Sensitivity: 실제 분류 중 맞게 예측한 비율
+* Specificity: 실제 분류가 아닌 것 중 맞게 예측한 비율
+* Pos Pred Value: 긍정 예측 중 올바른 예측 비율 -> 정밀도
+* Neg Pred Value: 부정 예측 중 올바른 예측 비율
+* Prevalence: 전체에서 긍정 예측 비율
+
+### 최적의 k 찾기
+```{r}
+ctrl <- trainControl(method="cv", number = 10)
+cl <- as.data.frame(as.factor(recognizer.trainLabels$label))[,1]
+recognizer.train.cl <- cbind(cl, recognizer.train)
+grid <- expand.grid(k=c(1,3,5,7,10,15,20))
+knnFit <- train(cl ~ ., data = recognizer.train.cl, method = "knn", trControl = ctrl, tuneGrid=grid)
+knnFit
+```
+
+* Plot
+```{r}
+plot(knnFit)
+```
+
+# 나이브 베이즈
+
+## e1071 패키지
+```{r}
+library(e1071)
+```
+
+## recognizer 데이터로 분류
+```{r}
+model <- naiveBayes(cl ~ ., data = recognizer.train)
+model
+```
+
+### 예측
+```{r}
+recognizer_pred <- predict(model, recognizer.test)
+recognizer_pred
+```
+
+### 혼동행렬
+```{r}
+confusionMatrix(recognizer_pred, recognizer.testLabels$label)
+```
+
+
+# 키와 몸무게 
+
+## Sample
+```{r}
+ind <- sample(1:nrow(X01_heights_weights_genders), 8000)
+
+## 수치 데이터와 Label을 따로 정의
+heights_weights_genders.train <- X01_heights_weights_genders[ind,]
+heights_weights_genders.test <- X01_heights_weights_genders[-ind,]
+```
+
+
+## kNN (최적의 k 찾기)
+```{r}
+ctrl <- trainControl(method="cv", number = 10)
+grid <- expand.grid(k=c(1,3,5,7,10,15,20))
+knnFit <- train(Gender ~ ., data = heights_weights_genders.train, method = "knn", trControl = ctrl, tuneGrid=grid)
+knnFit
+```
+
+* Plot
+```{r}
+plot(knnFit)
+```
+
+## Naive Bayes
+```{r}
+ctrl <- trainControl(method="cv", number = 10)
+knnFit <- train(Gender ~ ., data = heights_weights_genders.train, method = "nb", trControl = ctrl)
+knnFit
+```
+
+* Plot
+```{r}
+plot(knnFit)
+```

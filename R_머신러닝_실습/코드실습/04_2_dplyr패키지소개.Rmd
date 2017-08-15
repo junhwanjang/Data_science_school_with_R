@@ -1,0 +1,109 @@
+---
+title: "dplyr"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+# mtcars: 자동차 정보 (1974 Motor Trend US magazine)
+* mpg:	Miles/(US) gallon
+* cyl:	Number of cylinders
+* disp:	Displacement (cu.in.)
+* hp:	Gross horsepower
+* drat:	Rear axle ratio
+* wt:	Weight (1000 lbs)
+* qsec:	1/4 mile time
+* vs:	V/S
+* am:	Transmission (0 = automatic, 1 = manual)
+* gear:	Number of forward gears
+* carb:	Number of carburetors
+```{r}
+mtcars
+```
+
+# filter
+```{r}
+filter(mtcars, am==1)
+filter(mtcars, am==1, hp>100)
+```
+
+# arrange
+* arrange 함수는 rowname을 제거
+```{r}
+arrange(mtcars, cyl, disp, hp)
+```
+
+* rowname을 새로운 컬럼으로 추가
+```{r}
+mtcars_names <- add_rownames(mtcars, var = "rowname")
+arrange(mtcars_names, cyl, disp, hp)
+```
+
+* 원래 데이터
+```{r}
+mtcars
+```
+
+## select (1)
+```{r}
+select(mtcars, mpg, wt)
+```
+
+## select (2)
+```{r}
+select(mtcars, -mpg, -wt)
+```
+
+## distinct
+```{r}
+arrange(distinct(mtcars, cyl, am), am, cyl)
+```
+
+## mutate
+기존 컬럼 유지하고 새로운 컬럼 추가
+```{r}
+mtcars_hp_per_disp <- mutate(mtcars_names, hp_per_disp=hp/disp)
+arrange(mtcars_hp_per_disp, desc(hp_per_disp))
+```
+
+## transmute
+명시한 컬럼만 포함
+```{r}
+arrange(transmute(mtcars_names, rowname, mpg, disp, hp, hp_per_disp=hp/disp), desc(hp_per_disp))
+```
+
+## summarise
+```{r}
+summarise(mtcars_hp_per_disp, wt_mean=mean(hp_per_disp))
+```
+
+* 그룹으로 (1)
+```{r}
+summarise(group_by(mtcars_hp_per_disp, am), hp_per_disp=mean(hp_per_disp))
+```
+
+* 그룹으로 (2)
+```{r}
+summarise(group_by(mtcars_hp_per_disp, am), hp_per_disp=mean(hp_per_disp), count = n())
+```
+
+## Chaining
+* x %>% f(y) = f(x, y)
+* x %>% f(y) %>% g(z) = g(f(x, y), z)
+* x %>% f(y) %>% g(z) %>% h(p) = h(g(f(x, y), z), p)
+```{r}
+# mtcars_hp_per_disp <- mutate(mtcars_names, hp_per_disp=hp/disp)
+# group_by(mtcars_hp_per_disp, am)
+# summarise(group_by(mtcars_hp_per_disp, am), hp_per_disp=mean(hp_per_disp), count = n())
+mtcars_names %>% mutate(hp_per_disp=hp/disp) %>% group_by(am) %>% summarise(hp_per_disp=mean(hp_per_disp), count = n())
+```
