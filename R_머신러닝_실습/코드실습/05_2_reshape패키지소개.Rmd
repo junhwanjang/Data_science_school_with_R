@@ -1,0 +1,44 @@
+---
+title: "reshape2"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# wide format <-> long format
+
+```{r}
+library(reshape2)
+```
+
+## wide format
+```{r}
+airquality
+```
+
+## Month와 Day를 제외한 컬럼들을 long format으로
+```{r}
+aqm <- melt(airquality, id=c("Month", "Day"), na.rm=TRUE)
+aqm
+```
+
+## aqm을 wide format으로
+```{r}
+dcast(aqm, Month + Day ~ variable)
+```
+
+## 전체 컬럼에 대해 long format으로 바꾸려면
+```{r}
+aqm_t <- melt(cbind(airquality, label=c(1:nrow(airquality))), id=c("label"), na.rm=TRUE)
+aqm_t
+```
+
+## wide format으로
+```{r}
+dcast(aqm_t, label ~ variable)
+```
+

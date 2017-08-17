@@ -1,0 +1,321 @@
+---
+title: "Bagging, Random Forest, Boosting"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+
+# kyphosis 훈련/테스트 데이터
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+```
+
+## 표본 10개 추출
+```{r}
+index_1 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_1 <- kyphosis[index_1,]
+index_2 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_2 <- kyphosis[index_2,]
+index_3 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_3 <- kyphosis[index_3,]
+index_4 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_4 <- kyphosis[index_4,]
+index_5 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_5 <- kyphosis[index_5,]
+index_6 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_6 <- kyphosis[index_6,]
+index_7 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_7 <- kyphosis[index_7,]
+index_8 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_8 <- kyphosis[index_8,]
+index_9 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_9 <- kyphosis[index_9,]
+index_10 <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain_10 <- kyphosis[index_10,]
+```
+
+## 분류 나무 10개
+```{r}
+fit_1 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_1)
+rpart.plot(fit_1)
+fit_2 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_2)
+rpart.plot(fit_2)
+fit_3 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_3)
+rpart.plot(fit_3)
+fit_4 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_4)
+rpart.plot(fit_4)
+fit_5 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_5)
+rpart.plot(fit_5)
+fit_6 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_6)
+rpart.plot(fit_6)
+fit_7 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_7)
+rpart.plot(fit_7)
+fit_8 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_8)
+rpart.plot(fit_8)
+fit_9 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_9)
+rpart.plot(fit_9)
+fit_10 <- rpart(Kyphosis ~ ., method="class", data = kyphosisTrain_10)
+rpart.plot(fit_10)
+```
+
+## 아무 관측값 선택
+```{r}
+kyphosis[10,]
+kyphosis[20,]
+```
+
+## 10 번째 관측값에 대해
+아직 Bagging 아님
+```{r}
+pred_list <- sapply(list(fit_1, fit_2, fit_3, fit_4, fit_5, fit_6, fit_7, fit_8, fit_9, fit_9, fit_10),  function(x){predict(object=x, newdata=kyphosis[10,])})
+mean(pred_list[1,]) # absent
+mean(pred_list[2,]) # present
+```
+
+## 20 번째 관측값에 대해
+아직 Bagging 아님
+```{r}
+pred_list <- sapply(list(fit_1, fit_2, fit_3, fit_4, fit_5, fit_6, fit_7, fit_8, fit_9, fit_9, fit_10),  function(x){predict(object=x, newdata=kyphosis[20,])})
+mean(pred_list[1,]) # absent
+mean(pred_list[2,]) # present
+```
+
+# Bagging
+
+## adabag 패키지
+```{r}
+library(adabag)
+```
+
+### kyphosis 데이터로 훈련
+```{r}
+index <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosisTrain <- kyphosis[index,]
+kyphosisTest <- kyphosis[-index,]
+# mfinal: 반복 횟수
+kyphosis.bagging <- bagging(Kyphosis ~ ., data = kyphosisTrain, mfinal=500)
+summary(kyphosis.bagging)  # kyphosis.bagging를 그대로 보면 너무 많음
+```
+
+### 나무들
+```{r}
+kyphosis.bagging$trees[[1]]
+kyphosis.bagging$trees[[2]]
+```
+
+* 나무들 각각은 그냥 rpart에서의 나무
+```{r}
+rpart.plot(kyphosis.bagging$trees[[1]])
+```
+
+### 관측값들의 분류
+* 1: absetnt
+* 2: present
+```{r}
+kyphosis.bagging$votes
+kyphosis.bagging$prob
+kyphosis.bagging$class
+```
+
+### 변수의 중요도
+```{r}
+kyphosis.bagging$importance
+importanceplot(kyphosis.bagging)
+```
+
+### 예측
+```{r}
+kyphosis.predbagging<- predict.bagging(kyphosis.bagging, newdata=kyphosisTest)
+kyphosis.predbagging
+```
+
+
+## random forest 패키지
+```{r}
+library(randomForest)
+```
+
+## 분류 (random forest로) 
+
+### 훈련 데이터와 모형
+```{r}
+kyphosis.bagging <- randomForest(Kyphosis ~ ., data = kyphosisTrain, mtry=3, ntree =500, importance=TRUE)
+kyphosis.bagging
+```
+
+### 예측과 혼동행렬
+```{r}
+pred.bagging <- predict(kyphosis.bagging, newdata=kyphosisTest)
+confusionMatrix(pred.bagging, kyphosisTest$Kyphosis)
+```
+
+### 변수의 중요도
+```{r}
+importance(kyphosis.bagging)
+```
+
+```{r}
+varImpPlot(kyphosis.bagging)
+```
+
+
+## 회귀 (random forest로) 
+
+### 훈련 데이터와 모형
+```{r}
+index <- createDataPartition(mtcars$mpg, p=0.8, list = FALSE)
+mtcarsTrain <- mtcars[index,]
+mtcarsTest <- mtcars[-index,]
+mtcars.bagging <- randomForest(mpg ~ ., data=mtcarsTrain, mtry=10, ntree = 500, importance=TRUE)
+mtcars.bagging
+```
+
+### 예측과 MSE
+```{r}
+pred.bagging <- predict(mtcars.bagging, newdata=mtcarsTest)
+mean((pred.bagging-mtcarsTest$mpg)^2)
+```
+
+### 변수의 중요도
+```{r}
+importance(mtcars.bagging)
+```
+
+```{r}
+varImpPlot(mtcars.bagging)
+```
+
+
+# Random Forest
+
+## 분류
+
+### 훈련 (변수 개수는 기본값)
+```{r}
+# ntree: 나무의 개수, mtry: 사용할 변수의 개수
+kyphosis.rf <- randomForest(Kyphosis ~ ., data = kyphosisTrain, ntree=500, importance=TRUE)
+kyphosis.rf
+# kyphosis.rf$forest -> 전체 포레스트
+```
+
+* err.rate[,1]: 누적 OOB 에러율
+```{r}
+plot(1:500, kyphosis.rf$err.rate[,1], "l", xlab = "# trees", ylab = "Error Rate")
+varImpPlot(kyphosis.rf)
+```
+
+### 훈련 (변수 개수: 2)
+```{r}
+# ntree: 나무의 개수, mtry: 사용할 변수의 개수
+kyphosis.rf2 <- randomForest(Kyphosis ~ ., data = kyphosisTrain, mtry=2, ntree=500, importance=TRUE)
+kyphosis.rf2
+```
+
+* err.rate[,1]: 누적 OOB 에러율
+```{r}
+plot(1:500, kyphosis.rf2$err.rate[,1], "l", xlab = "# trees", ylab = "Error Rate")
+varImpPlot(kyphosis.rf2)
+```
+
+### 예측 (변수: 1)
+```{r}
+pred.rf <- predict(kyphosis.rf, kyphosisTest)
+confusionMatrix(pred.rf, kyphosisTest[,1])
+```
+
+### 예측 (변수: 2)
+```{r}
+pred.rf2 <- predict(kyphosis.rf2, kyphosisTest)
+confusionMatrix(pred.rf2, kyphosisTest[,1])
+```
+
+## 회귀
+
+### 훈련 데이터와 모형 (변수 개수: 기본값)
+```{r}
+mtcars.rf <- randomForest(mpg ~ ., data=mtcarsTrain, ntree=500, importance=TRUE)
+mtcars.rf
+```
+
+### 예측과 MSE (변수 개수: 기본값)
+```{r}
+pred.rf <- predict(mtcars.rf, newdata=mtcarsTest)
+mean((pred.rf-mtcarsTest$mpg)^2)
+```
+
+### 훈련 데이터와 모형 (변수 개수: 4)
+```{r}
+mtcars.rf4 <- randomForest(mpg ~ ., data=mtcarsTrain, ntree=500, mtry = 4, importance=TRUE)
+mtcars.rf4
+```
+
+### 예측과 MSE (변수 개수: 4)
+```{r}
+pred.rf4 <- predict(mtcars.rf4, newdata=mtcarsTest)
+mean((pred.rf4-mtcarsTest$mpg)^2)
+```
+
+### 변수의 중요도
+```{r}
+varImpPlot(mtcars.rf)
+```
+
+# Boosting
+
+## gbm 패키지
+```{r}
+library(gbm)
+```
+
+### 분류나무 Boosting
+Kyphosis 변수값을 0, 1로
+```{r}
+kyphosis.boost <- gbm(ifelse(kyphosisTrain$Kyphosis=="absent", 0, 1) ~ ., data = kyphosisTrain, distribution = "bernoulli", n.trees = 500, interaction.depth = 1, cv.folds=10)
+kyphosis.boost
+```
+
+#### 요약
+```{r}
+summary(kyphosis.boost)
+```
+
+#### 교차검증
+```{r}
+gbm.perf(kyphosis.boost, method="cv")
+```
+
+#### 예측
+```{r}
+pred.boost <- predict(kyphosis.boost, newdata = kyphosisTest, n.trees = 500)
+confusionMatrix(ifelse(pred.boost>0.5, 1, 0), ifelse(kyphosisTest[,1]=="absent", 0, 1))
+```
+
+## adabag 패키지 사용
+
+### 훈련 (500번 반복)
+```{r}
+# boos: 가중치 사용, mfinal: 반복 횟수
+kyphosis.adaboost <- boosting(Kyphosis~., data=kyphosisTrain, boos=TRUE, mfinal=500)
+importanceplot(kyphosis.adaboost)
+```
+
+### 가중치
+```{r}
+kyphosis.adaboost$weights
+```
+
+### 예측
+```{r}
+kyphosis.predboosting <- predict.boosting(kyphosis.adaboost, newdata=kyphosisTest)
+kyphosis.predboosting
+```
+
+
+
