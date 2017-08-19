@@ -1,0 +1,128 @@
+---
+title: "Support Vector Machine"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# 패키지
+```{r}
+library(caret)
+library(e1071)
+```
+
+# iris
+```{r}
+index.train <- createDataPartition(iris$Species, p=0.8, list = FALSE)
+iris.train <- iris[index.train,]
+iris.test <- iris[-index.train,]
+```
+
+## SVM 훈련
+* Support Vectors: 마진을 결정하는 점들
+* gamma: kernel에 사용되는 모수
+```{r}
+svm.iris <- svm(Species ~ ., data=iris.train)
+summary(svm.iris)
+```
+
+## 예측/교차검증
+```{r}
+pred.iris <- predict(svm.iris, iris.test)
+confusionMatrix(pred.iris, iris.test$Species)
+```
+
+# kyphosis
+```{r}
+library(rpart)
+index.train <- createDataPartition(kyphosis$Kyphosis, p=0.8, list = FALSE)
+kyphosis.train <- kyphosis[index.train,]
+kyphosis.test <- kyphosis[-index.train,]
+```
+
+## SVM 훈련
+```{r}
+svm.kyphosis <- svm(Kyphosis ~ ., data=kyphosis.train)
+summary(svm.kyphosis)
+```
+
+## 예측/교차검증
+```{r}
+pred.kyphosis <- predict(svm.kyphosis, kyphosis.test)
+confusionMatrix(pred.kyphosis, kyphosis.test$Kyphosis)
+```
+
+## Tune (fix)
+```{r}
+# grid search
+obj.fix <- tune(svm, Kyphosis ~ ., data = kyphosis, 
+            ranges = list(gamma = 2^(-5:1), cost = 2^(0:4)),
+            tunecontrol = tune.control(sampling = "fix")
+            )
+summary(obj.fix)
+plot(obj.fix)
+```
+
+## Tune (bootstrap)
+```{r}
+# grid search
+obj.bootstrap <- tune(svm, Kyphosis ~ ., data = kyphosis, 
+            ranges = list(gamma = 2^(-5:1), cost = 2^(0:4)),
+            tunecontrol = tune.control(sampling = "bootstrap")
+            )
+summary(obj.bootstrap)
+plot(obj.bootstrap)
+```
+
+## Tuned Test
+```{r}
+pred_tuned <- predict(obj.bootstrap$best.model, kyphosis.test)
+confusionMatrix(pred_tuned, kyphosis.test$Kyphosis)
+```
+
+# kernlab (spam data)
+
+```{r}
+library(kernlab)
+data(spam)
+```
+
+## 훈련/테스트 데이터
+```{r}
+index.train <- createDataPartition(spam$type, p=0.8, list = FALSE)
+spam.train <- spam[index.train,]
+spam.test <- spam[-index.train,]
+```
+
+## SVM 훈련
+```{r}
+svm.spam <- svm(type ~ ., data=spam.train)
+summary(svm.spam)
+```
+
+## 예측/교차검증
+```{r}
+pred.spam <- predict(svm.spam, spam.test)
+confusionMatrix(pred.spam, spam.test$type)
+```
+
+## Tune (cross validation)
+```{r}
+# grid search
+obj.cross <- tune(svm, type ~ ., data = spam, 
+            ranges = list(gamma = c(1:3)/100, cost = c(1:5)*2),
+            tunecontrol = tune.control(sampling = "cross", cross=5)
+            )
+summary(obj.cross)
+plot(obj.cross)
+```
+
+## Tuned Test
+```{r}
+pred_tuned <- predict(obj.cross$best.model, spam.test)
+confusionMatrix(pred_tuned, spam.test$type)
+```
