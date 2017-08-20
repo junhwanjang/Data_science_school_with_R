@@ -1,0 +1,93 @@
+---
+title: "Bagging, Random Forest, Boosting - HW"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+
+```{r}
+library(kernlab)
+library(randomForest)
+library(caret)
+```
+
+# Bagging (randomForest로) 
+
+## 훈련 데이터와 모형
+```{r}
+data(spam)
+index.train <- createDataPartition(spam$type, p=0.8, list = FALSE)
+spam.train <- spam[index.train,]
+spam.test <- spam[-index.train,]
+spam.bagging <- randomForest(type ~ ., data = spam.train, mtry=57, ntree =500, importance=TRUE)
+spam.bagging
+```
+
+## 예측과 혼동행렬
+```{r}
+pred.bagging <- predict(spam.bagging, newdata=spam.test)
+confusionMatrix(pred.bagging, spam.test$type)
+```
+
+## 변수의 중요도
+```{r}
+importance(spam.bagging)
+```
+
+```{r}
+varImpPlot(spam.bagging)
+```
+
+
+# Random Forest
+
+## 훈련 (변수 개수는 기본값)
+```{r}
+# ntree: 나무의 개수, mtry: 사용할 변수의 개수
+spam.rf <- randomForest(type ~ ., data = spam.train, mtry=8, ntree =500, importance=TRUE)
+spam.rf
+```
+
+* err.rate[,1]: 누적 OOB 에러율
+```{r}
+plot(1:500, spam.rf$err.rate[,1], "l", xlab = "# trees", ylab = "Error Rate")
+varImpPlot(spam.rf)
+```
+
+# Boosting
+
+```{r}
+library(gbm)
+```
+
+```{r}
+spam.train.bin <- spam.train
+spam.train.bin$type <- ifelse(spam.train.bin$type=="spam", 1, 0)
+```
+
+## 훈련
+```{r}
+spam.boost <- gbm(type ~ ., data = spam.train.bin, distribution = "bernoulli", n.trees = 1000, interaction.depth = 5, cv.folds=5, shrinkage=0.01)
+spam.boost
+```
+
+## 요약
+```{r}
+summary(spam.boost)
+```
+
+#### 교차검증
+```{r}
+gbm.perf(spam.boost, method="cv")
+```
+
+#### 예측
+```{r}
+pred.boost <- predict(spam.boost, newdata = spam.test, n.trees = 1000)
+confusionMatrix(ifelse(pred.boost>0.5, "spam", "nonspam"), spam.test$type)
+```

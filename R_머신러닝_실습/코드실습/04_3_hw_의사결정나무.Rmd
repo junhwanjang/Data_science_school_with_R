@@ -1,0 +1,81 @@
+---
+title: "의사결정나무-HW"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r libs, include=FALSE}
+Sys.setlocale('LC_ALL', 'ko_KR.UTF-8')
+```
+
+# 패키지
+```{r}
+library(rpart)
+library(tree)
+library(caret)
+```
+
+# 모형 검증
+
+## kyphosis
+
+### 훈련/테스트 데이터
+```{r}
+set.seed(2222)
+trainIndex <- createDataPartition(kyphosis$Kyphosis, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+kyphosisTrain <- kyphosis[ trainIndex,]
+kyphosisTest  <- kyphosis[-trainIndex,]
+```
+
+### 나무 만들기
+```{r}
+fit <- tree(Kyphosis ~ Age + Number + Start, data = kyphosisTrain)
+plot(fit)
+text(fit)
+```
+
+### 가지치기
+```{r}
+cv.fit <- cv.tree(fit, FUN=prune.misclass)
+plot(cv.fit)
+prune.fit <- prune.misclass(fit, best=6)
+plot(prune.fit)
+text(prune.fit)
+```
+
+### class 형식으로 예측하여 혼동행렬
+```{r}
+pred <- predict(prune.fit, kyphosisTest, type='class')
+confusionMatrix(pred, kyphosisTest$Kyphosis)
+```
+
+## Car
+
+### 훈련/테스트 데이터
+```{r}
+trainIndex <- createDataPartition(cu.summary$Type, p = 0.8,
+                                  list = FALSE, 
+                                  times = 1
+                                  )
+cu.summaryTrain <- cu.summary[ trainIndex,]
+cu.summaryTest  <- cu.summary[-trainIndex,]
+```
+
+### 예측
+```{r}
+fit <- tree(Mileage~Price + Country + Reliability + Type, data=cu.summary)
+plot(fit)
+text(fit)
+```
+
+### 가지치기
+```{r}
+cv.fit <- cv.tree(fit, FUN=prune.tree)
+plot(cv.fit)
+prune.fit <- prune.tree(fit, method="deviance", best=4)
+plot(prune.fit)
+text(prune.fit)
+```
